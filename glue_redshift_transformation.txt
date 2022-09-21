@@ -1,0 +1,32 @@
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+
+## @params: [TempDir, JOB_NAME]
+args = getResolvedOptions(sys.argv, ['TempDir','JOB_NAME'])
+
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+
+datasource0 = glueContext.create_dynamic_frame.from_catalog(database = "dev2", table_name = "customer_table_new_csv", transformation_ctx = "datasource0")## @type: DataSource
+
+datasource1 = glueContext.create_dynamic_frame.from_catalog(database = "dev2", table_name = "trasactions_generated_v1_2_csv", redshift_tmp_dir = args["TempDir"], transformation_ctx = "datasource1")
+
+
+applymapping1 = ApplyMapping.apply(frame = datasource0, mappings = [("account_no", "string", "account_no", "string"), ("name", "string", "name", "string"), ("age", "long", "age", "long"), ("country", "string", "country", "string"), ("gender", "string", "gender", "string"), ("account_status", "string", "account_status", "string"), ("created_date", "string", "created_date", "string"), ("last_updated_date", "string", "last_updated_date", "string")], transformation_ctx = "applymapping1")
+applymapping2 = ApplyMapping.apply(frame = datasource1, mappings = [("transaction_no", "bigint", "transaction_no", "bigint"), ("account_no", "string", "account_no", "string"), ("date", "string", "date", "string"), ("transaction_details", "string", "transaction_details", "string"), ("chq_no", "bigint", "chq_no", "bigint"), ("value_date", "string", "value_date", "string"), ("withdrawal_amt", "bigint", "withdrawal_amt", "bigint"), ("deposit_amt", "bigint", "deposit_amt", "bigint"), ("balance_amt", "bigint", "balance_amt", "bigint")], transformation_ctx = "applymapping2")
+
+resolvechoice2 = ResolveChoice.apply(frame = applymapping1, choice = "make_cols", transformation_ctx = "resolvechoice2")
+
+dropnullfields3 = DropNullFields.apply(frame = resolvechoice2, transformation_ctx = "dropnullfields3")
+
+datasource2 = Join.apply(frame1 = datasource0, frame2 = datasource1, keys1 = "account_no", keys2 = "account_no", transformation_ctx = "datasource2")
+
+datasink4 = glueContext.write_dynamic_frame.from_jdbc_conf(frame = datasource2, catalog_connection = "con_redshift_glue", connection_options = {"dbtable": "results_table", "database": "dev"}, redshift_tmp_dir = args["TempDir"], transformation_ctx = "datasink4")
+job.commit()
