@@ -1,0 +1,25 @@
+wget https://repo1.maven.org/maven2/com/da...
+wget https://github.com/ralfstx/minimal-js...
+wget https://repo1.maven.org/maven2/com/da...
+
+
+mydf=spark.read.format("csv").option("header","true").option("infraSchema","true").load("s3://myawsuse/customers.csv")
+
+
+[hadoop@ip-172-31-35-114 ~]$ pyspark --jars spark-redshift_2.10-2.0.0.jar,/usr/share/aws/redshift/jdbc/RedshiftJDBC41.jar,minimal-json-0.9.4.jar,spark-avro_2.11-3.0.0.jar
+
+spark._jsc.hadoopConfiguration().set("fs.s3.awsAccessKeyId","AKIA5NJPX2W3KKAKMSUB")
+spark._jsc.hadoopConfiguration().set("fs.s3.awsSecretAccessKey","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")
+
+jdbcURL = "jdbc:redshift://redshift-cluster-1234.cpic4dempqol.ap-south-1.redshift.amazonaws.com:5439/dev?user=awsuser&password=anandniwas27A" 
+
+s3TempDir = "s3://mydemoemr1512/"
+
+fdf=spark.read.format("com.databricks.spark.redshift").option("url",jdbcURL).option("dbtable","sales").option("tempdir",s3TempDir).load()
+fdf.show()
+
+s3TempDir="s3://test-redshift-demo-1"
+mydf.write.format("com.databricks.spark.redshift").option("url", jdbcURL).option("dbtable", "orders").option("aws_iam_role", "arn:aws:iam::105489300607:role/service-role/AmazonRedshift-CommandsAccessRole-20220912T145958").option("tempdir", s3TempDir).mode("overwrite").save()
+
+
+wget http://spark.apache.org/third-party-projects.html
