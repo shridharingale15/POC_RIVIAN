@@ -1,0 +1,159 @@
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+import boto3
+from datetime import date
+from pyspark.sql.functions import col
+from datetime import datetime
+from datetime import timezone
+from datetime import date
+from datetime import timedelta
+import urllib3
+from awsglue.dynamicframe import DynamicFrame
+import datetime
+
+
+args = getResolvedOptions(sys.argv, ["JOB_NAME"])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args["JOB_NAME"], args)
+
+# Script generated for node Amazon Redshift
+AmazonRedshift_node1664171006592 = glueContext.create_dynamic_frame.from_catalog(
+    database="rivian_db",
+    additional_options={
+        "aws_iam_role": "arn:aws:iam::622527851988:role/RedshiftServiceAuth_RS"
+    },
+    redshift_tmp_dir="s3://cv-rivian-demo/temp/",
+    table_name="riviandb_public_transaction",
+    transformation_ctx="AmazonRedshift_node1664171006592",
+)
+
+# Script generated for node S3 bucket
+S3bucket_node1 = glueContext.create_dynamic_frame.from_catalog(
+    database="rivian_db",
+    additional_options={
+        "aws_iam_role": "arn:aws:iam::622527851988:role/RedshiftServiceAuth_RS"
+    },
+    redshift_tmp_dir="s3://cv-rivian-demo/temp/",
+    table_name="riviandb_public_customer_snapshot",
+    transformation_ctx="S3bucket_node1",
+)
+
+print("-------------1st one--------------");
+
+# Script generated for node ApplyMapping
+ApplyMapping_node2 = Join.apply(
+    frame1=S3bucket_node1,
+    frame2=AmazonRedshift_node1664171006592,
+    keys1=["account_no"],
+    keys2=["account_no"],
+    transformation_ctx="ApplyMapping_node2"
+)
+ApplyMapping_node2.show()
+
+print("------------2nd one---------------");
+
+
+if ('--{}'.format('data_date') in sys.argv):
+    args = getResolvedOptions(sys.argv, ['data_date'])
+    data_date = args.get("data_date")
+    # data_date  = to_date(lit('06-24-2019 12:01:19.000'),'MM-dd-yyyy HH:mm:ss.SSSS'))
+    
+    # data_flow = datetime.data_date.strftime("%Y-%m-%d-%H.%M.%S")
+    # execution_name = 'cust_transaction_SF_'+data_flow  
+    
+    x = datetime.datetime.now()
+
+    # data_date="2022-09-20"
+    execution_name="customer_tranasction"+"-"+data_date +"-"+(x.strftime("%H%M%S"))
+    print(execution_name)
+    
+    ApplyMapping_node3=ApplyMapping_node2.toDF().where(col("insert_date")== data_date)
+    #ApplyMapping_node3=ApplyMapping_node2.filter(col("insert_date"))== date.today()
+    dynamic_transform_df=DynamicFrame.fromDF(ApplyMapping_node3, glueContext, "dynamic_transform_df")
+    print("tranformed df to dynamic transformed df")
+    
+     
+
+    ApplyMapping_node3_no_nulls = DropNullFields.apply(dynamic_transform_df)
+# dynamicdf=DynamicFrame.fromDF(ApplyMapping_node3_no_nulls, glueContext, "dynamicdf")
+
+    ApplyMapping_node3_no_nulls.show()
+    
+     
+    print("-----------3rd one----------------");
+
+
+    # ApplyMapping_node3.show()
+    
+    # Script generated for node S3 bucket
+    S3bucket_node3 = glueContext.write_dynamic_frame.from_catalog(
+        frame=ApplyMapping_node3_no_nulls,
+        database="rivian_db",
+        table_name="riviandb_public_customer_transaction",
+        redshift_tmp_dir="s3://cv-rivian-demo/temp/",
+        additional_options={"aws_iam_role": "arn:aws:iam::622527851988:role/RedshiftServiceAuth_RS"},transformation_ctx="S3bucket_node3")
+    print("-----------4th one----------------");
+    # S3bucket_node3 = glueContext.write_dynamic_frame.from_jdbc_conf(frame = ApplyMapping_node3_no_nulls, catalog_connection = "Redshift", connection_options = {"dbtable": "riviandb_public_customer_transaction_test", "database": "riviandb"}, redshift_tmp_dir ="s3://cv-rivian-demo/temp/" , transformation_ctx = "S3bucket_node3")
+
+ 
+    client = boto3.client('stepfunctions')
+    response = client.start_execution(stateMachineArn='arn:aws:states:us-east-1:622527851988:stateMachine:cv_MyStateMachine_POC',name=execution_name)
+        
+        
+else:
+    edate = date.today()
+    sdate = edate + timedelta(days=-1)
+    #end_date = edate.strftime("%Y-%m-%d")
+    start_date = sdate.strftime("%Y-%m-%d")
+    print("running without argument start_date is -------------------------",start_date)
+    ApplyMapping_node3=ApplyMapping_node2.toDF().where(col("insert_date")== start_date)
+    #ApplyMapping_node3=ApplyMapping_node2.filter(col("insert_date"))== date.today()
+    dynamic_transform_df=DynamicFrame.fromDF(ApplyMapping_node3, glueContext, "dynamic_transform_df")
+    print("tranformed df to dynamic transformed df")
+    # data_date = args.get("data_date")
+    x = datetime.datetime.now()
+
+    # data_date="2022-09-20"
+    execution_name="customer_tranasction"+"-"+start_date +"-"+(x.strftime("%H%M%S"))
+    print(execution_name)
+     
+
+    ApplyMapping_node3_no_nulls = DropNullFields.apply(dynamic_transform_df)
+# dynamicdf=DynamicFrame.fromDF(ApplyMapping_node3_no_nulls, glueContext, "dynamicdf")
+
+    ApplyMapping_node3_no_nulls.show()
+    
+     
+    print("-----------3rd one----------------");
+
+
+
+    # Script generated for node S3 bucket
+    S3bucket_node3 = glueContext.write_dynamic_frame.from_catalog(
+        frame=ApplyMapping_node3_no_nulls,
+        database="rivian_db",
+        table_name="riviandb_public_customer_transaction",
+        redshift_tmp_dir="s3://cv-rivian-demo/temp/",
+        additional_options={
+            "aws_iam_role": "arn:aws:iam::622527851988:role/RedshiftServiceAuth_RS"
+        },
+        transformation_ctx="S3bucket_node3",
+    )
+    print("-----------4th one----------------");
+    # S3bucket_node3 = glueContext.write_dynamic_frame.from_jdbc_conf(frame = ApplyMapping_node3_no_nulls, catalog_connection = "Redshift", connection_options = {"dbtable": "riviandb_public_customer_transaction_test", "database": "riviandb"}, redshift_tmp_dir ="s3://cv-rivian-demo/temp/" , transformation_ctx = "S3bucket_node3")
+
+
+    
+    client = boto3.client('stepfunctions')
+    response = client.start_execution(stateMachineArn='arn:aws:states:us-east-1:622527851988:stateMachine:cv_MyStateMachine_POC',name=execution_name)
+        
+        
+        
+job.commit()
